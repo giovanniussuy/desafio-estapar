@@ -56,6 +56,10 @@ public class ParkingEventService {
     }
 
     private void handleEntry(WebhookEventRequest request) {
+        if (request.entryTime() == null) {
+            throw new DomainException("entry_time is required for ENTRY event");
+        }
+
         parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .ifPresent(active -> {
                 throw new DomainException("Vehicle already inside garage");
@@ -73,7 +77,7 @@ public class ParkingEventService {
         session.setLicensePlate(request.licensePlate());
         session.setSector(selectedSector);
         session.setSpot(reservedSpot);
-        session.setEntryTime(request.entryTime() != null ? request.entryTime() : Instant.now());
+        session.setEntryTime(request.entryTime());
         session.setStatus(SessionStatus.ENTERED);
         session.setPriceMultiplier(multiplier);
         session.setHourlyPriceApplied(hourlyPrice);
@@ -87,22 +91,24 @@ public class ParkingEventService {
     }
 
     private void handleParked(WebhookEventRequest request) {
+        if (request.lat() == null || request.lng() == null) {
+            throw new DomainException("lat and lng are required for PARKED event");
+        }
+
         ParkingSession session = parkingSessionRepository
             .findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .orElseThrow(() -> new DomainException("Open session not found for vehicle"));
 
-        if (request.lat() != null && request.lng() != null) {
-            ParkingSpot matchedSpot = findSpotByCoordinates(request.lat(), request.lng());
-            if (matchedSpot != null && session.getSpot() != null && !matchedSpot.getId().equals(session.getSpot().getId())) {
-                if (matchedSpot.isOccupied()) {
-                    throw new DomainException("Target spot already occupied");
-                }
-                session.getSpot().setOccupied(false);
-                parkingSpotRepository.save(session.getSpot());
-                matchedSpot.setOccupied(true);
-                parkingSpotRepository.save(matchedSpot);
-                session.setSpot(matchedSpot);
+        ParkingSpot matchedSpot = findSpotByCoordinates(request.lat(), request.lng());
+        if (matchedSpot != null && session.getSpot() != null && !matchedSpot.getId().equals(session.getSpot().getId())) {
+            if (matchedSpot.isOccupied()) {
+                throw new DomainException("Target spot already occupied");
             }
+            session.getSpot().setOccupied(false);
+            parkingSpotRepository.save(session.getSpot());
+            matchedSpot.setOccupied(true);
+            parkingSpotRepository.save(matchedSpot);
+            session.setSpot(matchedSpot);
         }
 
         session.setStatus(SessionStatus.PARKED);
@@ -111,11 +117,15 @@ public class ParkingEventService {
     }
 
     private void handleExit(WebhookEventRequest request) {
+        if (request.exitTime() == null) {
+            throw new DomainException("exit_time is required for EXIT event");
+        }
+
         ParkingSession session = parkingSessionRepository
             .findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .orElseThrow(() -> new DomainException("Open session not found for vehicle"));
 
-        Instant exitTime = request.exitTime() != null ? request.exitTime() : Instant.now();
+        Instant exitTime = request.exitTime();
         BigDecimal amount = pricingPolicy.calculateExitAmount(session.getEntryTime(), exitTime, session.getHourlyPriceApplied());
 
         if (session.getSpot() != null && session.getSpot().isOccupied()) {
@@ -141,7 +151,7 @@ public class ParkingEventService {
     }
 
     private Sector selectSectorWithAvailability() {
-        List<Sector> sectors = sectorRepository.findAllByOrderByCodeAsc();
+        List<Sector> sectors = sectorRepository.findAllByOrderByCodeAscForUpdate();
         return sectors.stream()
             .filter(Sector::hasAvailableSpot)
             .findFirst()

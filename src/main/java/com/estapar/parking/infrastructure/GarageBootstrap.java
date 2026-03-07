@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -24,15 +25,18 @@ public class GarageBootstrap implements ApplicationRunner {
     private final GarageSimulatorClient simulatorClient;
     private final SectorRepository sectorRepository;
     private final ParkingSpotRepository parkingSpotRepository;
+    private final boolean bootstrapRequired;
 
     public GarageBootstrap(
         GarageSimulatorClient simulatorClient,
         SectorRepository sectorRepository,
-        ParkingSpotRepository parkingSpotRepository
+        ParkingSpotRepository parkingSpotRepository,
+        @Value("${simulator.bootstrap.required:true}") boolean bootstrapRequired
     ) {
         this.simulatorClient = simulatorClient;
         this.sectorRepository = sectorRepository;
         this.parkingSpotRepository = parkingSpotRepository;
+        this.bootstrapRequired = bootstrapRequired;
     }
 
     @Override
@@ -46,11 +50,18 @@ public class GarageBootstrap implements ApplicationRunner {
         try {
             config = simulatorClient.getGarageConfig();
         } catch (RestClientException e) {
-            logger.warn("Failed to load garage configuration from simulator. The simulator service may not be available. Proceeding without initial data load.", e);
+            if (bootstrapRequired) {
+                throw new IllegalStateException("Failed to load garage configuration from simulator", e);
+            }
+            logger.warn("Failed to load garage configuration from simulator. Proceeding without initial data load because simulator.bootstrap.required=false.", e);
             return;
         }
 
         if (config == null || config.garage() == null || config.spots() == null) {
+            if (bootstrapRequired) {
+                throw new IllegalStateException("Invalid garage configuration payload from simulator");
+            }
+            logger.warn("Invalid garage configuration payload. Proceeding without initial data load because simulator.bootstrap.required=false.");
             return;
         }
 

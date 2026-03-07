@@ -1,5 +1,6 @@
 package com.estapar.parking.infrastructure.client;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.util.List;
@@ -11,7 +12,8 @@ public record GarageConfigResponse(
 
     public record GarageSectorResponse(
         @JsonProperty("sector") String sector,
-        @JsonProperty("basePrice") BigDecimal basePrice,
+        @JsonAlias("basePrice")
+        @JsonProperty("base_price") BigDecimal basePrice,
         @JsonProperty("max_capacity") Integer maxCapacity
     ) {
     }
