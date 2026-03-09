@@ -14,6 +14,7 @@ Instale:
 
 Opcional (não obrigatório):
 - MySQL Workbench / DBeaver para inspecionar o banco
+- Bruno (cliente API), para usar os cenários prontos em `util/client_bruno`
 
 ## 2. Clonar o projeto
 
@@ -42,6 +43,8 @@ Se estiver no Windows e `--network="host"` não funcionar no seu ambiente Docker
 docker run -d --name garagem-sim -p 3000:3000 cfontes0estapar/garage-sim:1.0.0
 ```
 
+Observação: a imagem não possui tag `latest`. Use `:1.0.0`.
+
 ## 4. Configuração da aplicação
 
 A aplicação já possui defaults em `src/main/resources/application.properties`:
@@ -49,12 +52,15 @@ A aplicação já possui defaults em `src/main/resources/application.properties`
 - MySQL: `jdbc:mysql://localhost:3306/desafio_estapar`
 - usuário/senha: `root/root`
 - simulador: `http://localhost:3000`
+- timezone de receita: `America/Sao_Paulo`
 
 Se quiser sobrescrever, use variáveis de ambiente:
 - `DB_URL`
 - `DB_USER`
 - `DB_PASSWORD`
 - `SIMULATOR_BASE_URL`
+- `SIMULATOR_BOOTSTRAP_REQUIRED` (`true`/`false`)
+- `APP_REVENUE_TIME_ZONE` (ex.: `America/Sao_Paulo`)
 
 Ideal trabalhar com secrets para chaves sensíveis, mas para simplicidade do desafio, variáveis de ambiente já são suficientes.
 
@@ -76,9 +82,36 @@ No diretório do projeto:
 
 No startup, a aplicação busca o `GET /garage` do simulador e persiste setores/vagas no MySQL.
 
-## 6. Testar rapidamente
+Se quiser subir a API sem simulador (modo desenvolvimento), rode com:
 
-### 6.1 Webhook ENTRY
+```powershell
+$env:SIMULATOR_BOOTSTRAP_REQUIRED="false"
+.\mvnw.cmd spring-boot:run
+```
+
+ou em Linux/macOS:
+
+```bash
+SIMULATOR_BOOTSTRAP_REQUIRED=false ./mvnw spring-boot:run
+```
+
+## 6.1 Subir em modo debug
+
+Debug remoto na porta `5005`:
+
+```powershell
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+```
+
+Se quiser pausar o startup até conectar o debugger (`suspend=y`):
+
+```powershell
+.\mvnw.cmd spring-boot:run -Dspring-boot.run.jvmArguments="-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5005"
+```
+
+## 7. Testar rapidamente (curl)
+
+### 7.1 Webhook ENTRY
 
 ```bash
 curl -X POST http://localhost:3003/webhook \
@@ -90,7 +123,7 @@ curl -X POST http://localhost:3003/webhook \
   }'
 ```
 
-### 6.2 Webhook PARKED
+### 7.2 Webhook PARKED
 
 ```bash
 curl -X POST http://localhost:3003/webhook \
@@ -103,7 +136,7 @@ curl -X POST http://localhost:3003/webhook \
   }'
 ```
 
-### 6.3 Webhook EXIT
+### 7.3 Webhook EXIT
 
 ```bash
 curl -X POST http://localhost:3003/webhook \
@@ -115,7 +148,7 @@ curl -X POST http://localhost:3003/webhook \
   }'
 ```
 
-### 6.4 Consultar receita
+### 7.4 Consultar receita
 
 ```bash
 curl "http://localhost:3003/revenue?date=2025-01-01&sector=A"
@@ -131,7 +164,33 @@ Resposta esperada (exemplo):
 }
 ```
 
-## 7. Rodar testes
+## 8. Usando o Bruno (`util/client_bruno`)
+
+Existe uma collection pronta em `util/client_bruno/estapar`.
+
+### 8.1 Importar e selecionar ambiente
+
+1. Abra o Bruno.
+2. `Open Collection` apontando para `util/client_bruno/estapar`.
+3. Selecione o ambiente `local` (`util/client_bruno/estapar/environments/local.yml`).
+
+### 8.2 Sequência recomendada de requests
+
+Execute na ordem:
+1. `garage` (consulta o simulador em `localhost:3000`)
+2. `Webhook ENTRY`
+3. `Webhook PARKED`
+4. `Webhook EXIT`
+5. `consulta receita`
+
+### 8.3 Dicas para `client_bruno`
+
+- A variável `posicao1` do ambiente `local` é injetada no body do `Webhook PARKED`.
+- Se o simulador retornar coordenadas diferentes, atualize `posicao1` com um par `lat/lng` válido.
+- A receita só é gravada no `EXIT`. Se pular esse evento, `/revenue` retorna `0`.
+- A data do `/revenue` deve bater com a data calculada no timezone da aplicação (`APP_REVENUE_TIME_ZONE`, default `America/Sao_Paulo`).
+
+## 9. Rodar testes
 
 ### Windows (PowerShell)
 
@@ -145,7 +204,7 @@ Resposta esperada (exemplo):
 ./mvnw test
 ```
 
-## 8. Encerrar ambiente
+## 10. Encerrar ambiente
 
 ```bash
 docker stop desafio-estapar-mysql garagem-sim

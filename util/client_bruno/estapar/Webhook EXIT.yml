@@ -1,0 +1,33 @@
+info:
+  name: Webhook EXIT
+  type: http
+  seq: 4
+
+http:
+  method: post
+  url: http://localhost:3003/webhook
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "license_plate": "ZUL0001",
+        "exit_time": "2026-03-08T17:11:34.344Z",
+        "event_type": "EXIT"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: before-request
+      code: |-
+        const now = new Date().toISOString();
+        bru.setVar("now", now);
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

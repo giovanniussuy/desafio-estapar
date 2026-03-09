@@ -1,0 +1,4 @@
+name: local
+variables:
+  - name: posicao1
+    value: '"lat": -23.561684, "lng": -46.655981,'

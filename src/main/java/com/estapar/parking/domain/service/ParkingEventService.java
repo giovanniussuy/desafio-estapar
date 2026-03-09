@@ -14,8 +14,9 @@ import com.estapar.parking.interfaces.error.DomainException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,19 +30,22 @@ public class ParkingEventService {
     private final ParkingSessionRepository parkingSessionRepository;
     private final RevenueEntryRepository revenueEntryRepository;
     private final PricingPolicy pricingPolicy;
+    private final ZoneId revenueTimeZone;
 
     public ParkingEventService(
         SectorRepository sectorRepository,
         ParkingSpotRepository parkingSpotRepository,
         ParkingSessionRepository parkingSessionRepository,
         RevenueEntryRepository revenueEntryRepository,
-        PricingPolicy pricingPolicy
+        PricingPolicy pricingPolicy,
+        @Value("${app.revenue.time-zone:America/Sao_Paulo}") String revenueTimeZone
     ) {
         this.sectorRepository = sectorRepository;
         this.parkingSpotRepository = parkingSpotRepository;
         this.parkingSessionRepository = parkingSessionRepository;
         this.revenueEntryRepository = revenueEntryRepository;
         this.pricingPolicy = pricingPolicy;
+        this.revenueTimeZone = ZoneId.of(revenueTimeZone);
     }
 
     @Transactional
@@ -144,7 +148,7 @@ public class ParkingEventService {
 
         RevenueEntry revenueEntry = new RevenueEntry();
         revenueEntry.setSectorCode(sector.getCode());
-        revenueEntry.setRevenueDate(LocalDate.ofInstant(exitTime, ZoneOffset.UTC));
+        revenueEntry.setRevenueDate(LocalDate.ofInstant(exitTime, revenueTimeZone));
         revenueEntry.setAmount(amount);
         revenueEntry.setCreatedAt(Instant.now());
         revenueEntryRepository.save(revenueEntry);

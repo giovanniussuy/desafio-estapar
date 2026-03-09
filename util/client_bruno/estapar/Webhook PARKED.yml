@@ -1,0 +1,28 @@
+info:
+  name: Webhook PARKED
+  type: http
+  seq: 3
+
+http:
+  method: post
+  url: http://localhost:3003/webhook
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "license_plate": "ZUL0001",
+        {{posicao1}}
+        "event_type": "PARKED"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: false
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+
+docs: longitude é um complexo para isnercao, deveria buscar por nome ou id de vaga, tipo posicao1... se tiver duas com o mesmo nome ai pede para confirmar longitude.
