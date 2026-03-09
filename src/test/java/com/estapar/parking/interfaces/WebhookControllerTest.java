@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 import com.estapar.parking.domain.service.ParkingEventService;
+import com.estapar.parking.interfaces.controller.WebhookController;
 import com.estapar.parking.interfaces.error.DomainException;
 import com.estapar.parking.interfaces.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;

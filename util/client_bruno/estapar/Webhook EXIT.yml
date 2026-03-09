@@ -13,7 +13,7 @@ http:
     type: json
     data: |-
       {
-        "license_plate": "ZUL0010",
+        "license_plate": "ZUL0001",
         "exit_time": "2026-03-08T15:11:34.344Z",
         "event_type": "EXIT"
       }

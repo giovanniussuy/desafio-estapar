@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 import com.estapar.parking.domain.service.RevenueService;
+import com.estapar.parking.interfaces.controller.RevenueController;
 import com.estapar.parking.interfaces.dto.RevenueResponse;
 import com.estapar.parking.interfaces.error.DomainException;
 import com.estapar.parking.interfaces.error.GlobalExceptionHandler;

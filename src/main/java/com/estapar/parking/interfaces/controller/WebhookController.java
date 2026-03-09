@@ -1,4 +1,4 @@
-package com.estapar.parking.interfaces;
+package com.estapar.parking.interfaces.controller;
 
 import com.estapar.parking.domain.service.ParkingEventService;
 import com.estapar.parking.interfaces.dto.WebhookEventRequest;
