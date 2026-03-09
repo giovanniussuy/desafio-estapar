@@ -95,15 +95,12 @@ public class ParkingEventService {
     }
 
     private void handleParked(WebhookEventRequest request) {
-        if (request.lat() == null || request.lng() == null) {
-            throw new DomainException("lat and lng are required for PARKED event");
-        }
+        ParkingSpot matchedSpot = findParkedSpot(request);
 
         ParkingSession session = parkingSessionRepository
             .findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .orElseThrow(() -> new DomainException("Open session not found for vehicle"));
 
-        ParkingSpot matchedSpot = findSpotByCoordinates(request.lat(), request.lng());
         if (matchedSpot != null && session.getSpot() != null && !matchedSpot.getId().equals(session.getSpot().getId())) {
             if (matchedSpot.isOccupied()) {
                 throw new DomainException("Target spot already occupied");
@@ -118,6 +115,32 @@ public class ParkingEventService {
         session.setStatus(SessionStatus.PARKED);
         session.setParkedTime(Instant.now());
         parkingSessionRepository.save(session);
+    }
+
+    private ParkingSpot findParkedSpot(WebhookEventRequest request) {
+        if (request.spotId() != null) {
+            ParkingSpot spot = parkingSpotRepository.findFirstByExternalId(request.spotId())
+                .orElseThrow(() -> new DomainException("spot_id not found"));
+
+            if (request.sector() != null && !request.sector().isBlank()) {
+                String informedSector = request.sector().trim().toUpperCase();
+                String spotSector = spot.getSector().getCode().toUpperCase();
+                if (!spotSector.equals(informedSector)) {
+                    throw new DomainException("spot_id does not belong to informed sector");
+                }
+            }
+            return spot;
+        }
+
+        if (request.lat() == null || request.lng() == null) {
+            throw new DomainException("spot_id or lat/lng are required for PARKED event");
+        }
+        if (request.sector() == null || request.sector().isBlank()) {
+            throw new DomainException("sector is required for PARKED event when spot_id is not provided");
+        }
+
+        String parkedSector = request.sector().trim().toUpperCase();
+        return findSpotByCoordinates(parkedSector, request.lat(), request.lng());
     }
 
     private void handleExit(WebhookEventRequest request) {
@@ -162,13 +185,19 @@ public class ParkingEventService {
             .orElseThrow(() -> new DomainException("Garage is full"));
     }
 
-    private ParkingSpot findSpotByCoordinates(BigDecimal lat, BigDecimal lng) {
+    private ParkingSpot findSpotByCoordinates(String sectorCode, BigDecimal lat, BigDecimal lng) {
         BigDecimal minLat = lat.subtract(COORDINATE_DELTA);
         BigDecimal maxLat = lat.add(COORDINATE_DELTA);
         BigDecimal minLng = lng.subtract(COORDINATE_DELTA);
         BigDecimal maxLng = lng.add(COORDINATE_DELTA);
 
-        return parkingSpotRepository.findFirstByLatBetweenAndLngBetween(minLat, maxLat, minLng, maxLng)
+        return parkingSpotRepository.findFirstBySectorCodeAndLatBetweenAndLngBetween(
+                sectorCode,
+                minLat,
+                maxLat,
+                minLng,
+                maxLng
+            )
             .orElse(null);
     }
 }

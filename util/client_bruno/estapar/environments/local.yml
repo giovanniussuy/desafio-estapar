@@ -1,4 +1,22 @@
 name: local
 variables:
-  - name: posicao1
+  - name: latlonA1
     value: '"lat": -23.561684, "lng": -46.655981,'
+  - name: latlonA2
+    value: '"lat": -23.561664, "lng": -46.655961,'
+  - name: latlonA3
+    value: '"lat": -23.561644, "lng": -46.655941,'
+  - name: latlonA4
+    value: '"lat": -23.561624, "lng": -46.655921,'
+  - name: latlonA5
+    value: '"lat": -23.561604, "lng": -46.655901,'
+  - name: latlonA6
+    value: '"lat": -23.561584, "lng": -46.655881,'
+  - name: latlonA7
+    value: '"lat": -23.561564, "lng": -46.655861,'
+  - name: latlonA8
+    value: '"lat": -23.561544, "lng": -46.655841,'
+  - name: latlonA9
+    value: '"lat": -23.561524, "lng": -46.655821,'
+  - name: latlonA10
+    value: '"lat": -23.561504, "lng": -46.655801,'

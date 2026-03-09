@@ -53,4 +53,20 @@ class PricingPolicyTest {
 
         assertEquals(new BigDecimal("20.00"), amount);
     }
+
+    @Test
+    void shouldApplyMultiplierAndRoundToTwoDecimals() {
+        BigDecimal adjusted = pricingPolicy.applyMultiplier(new BigDecimal("10.00"), new BigDecimal("1.155"));
+        assertEquals(new BigDecimal("11.55"), adjusted);
+    }
+
+    @Test
+    void shouldReturnZeroWhenExitIsBeforeEntry() {
+        Instant entry = Instant.parse("2025-01-01T12:00:00Z");
+        Instant exit = Instant.parse("2025-01-01T11:00:00Z");
+
+        BigDecimal amount = pricingPolicy.calculateExitAmount(entry, exit, new BigDecimal("10.00"));
+
+        assertEquals(new BigDecimal("0.00"), amount);
+    }
 }

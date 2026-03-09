@@ -13,8 +13,8 @@ http:
     type: json
     data: |-
       {
-        "license_plate": "ZUL0001",
-        {{posicao1}}
+        "license_plate": "ZUL0010",
+        "spot_id": 1,
         "event_type": "PARKED"
       }
   auth: inherit

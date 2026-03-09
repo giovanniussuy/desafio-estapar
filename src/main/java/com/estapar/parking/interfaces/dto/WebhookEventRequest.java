@@ -9,8 +9,10 @@ public record WebhookEventRequest(
     @JsonProperty("license_plate") @NotBlank String licensePlate,
     @JsonProperty("entry_time") Instant entryTime,
     @JsonProperty("exit_time") Instant exitTime,
+    @JsonProperty("spot_id") Long spotId,
     BigDecimal lat,
     BigDecimal lng,
+    String sector,
     @JsonProperty("event_type") @NotBlank String eventType
 ) {
 }

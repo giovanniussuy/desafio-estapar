@@ -13,8 +13,8 @@ http:
     type: json
     data: |-
       {
-        "license_plate": "ZUL0001",
-        "exit_time": "2026-03-08T17:11:34.344Z",
+        "license_plate": "ZUL0010",
+        "exit_time": "2026-03-08T15:11:34.344Z",
         "event_type": "EXIT"
       }
   auth: inherit
