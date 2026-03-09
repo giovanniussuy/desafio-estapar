@@ -13,7 +13,7 @@ http:
     type: json
     data: |-
       {
-        "license_plate": "ZUL0010",
+        "license_plate": "ZUL0001",
         "spot_id": 1,
         "event_type": "PARKED"
       }

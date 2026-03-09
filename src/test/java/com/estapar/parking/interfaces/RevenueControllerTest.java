@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 import com.estapar.parking.domain.service.RevenueService;
 import com.estapar.parking.interfaces.dto.RevenueResponse;
@@ -51,7 +52,9 @@ class RevenueControllerTest {
     void shouldReturnInternalServerErrorWhenDateIsMissing() throws Exception {
         mockMvc.perform(get("/revenue").queryParam("sector", "A"))
             .andExpect(status().isInternalServerError())
-            .andExpect(jsonPath("$.message").value("Unexpected server error"));
+            .andExpect(jsonPath("$.message").value("Unexpected server error"))
+            .andExpect(jsonPath("$.traceId").isNotEmpty())
+            .andExpect(header().exists("X-Trace-Id"));
     }
 
     @Test
@@ -63,6 +66,8 @@ class RevenueControllerTest {
                 .queryParam("date", "2026-03-08")
                 .queryParam("sector", "A"))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("invalid sector"));
+            .andExpect(jsonPath("$.message").value("invalid sector"))
+            .andExpect(jsonPath("$.traceId").isNotEmpty())
+            .andExpect(header().exists("X-Trace-Id"));
     }
 }

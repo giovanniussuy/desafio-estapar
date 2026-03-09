@@ -13,7 +13,7 @@ http:
     type: json
     data: |-
       {
-        "license_plate": "ZUL0011",
+        "license_plate": "ZUL0001",
         "entry_time": "2026-03-08T13:04:09.270Z",
         "event_type": "ENTRY"
       }

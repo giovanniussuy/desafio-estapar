@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
 import com.estapar.parking.domain.service.ParkingEventService;
 import com.estapar.parking.interfaces.error.DomainException;
@@ -59,7 +60,9 @@ class WebhookControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Invalid request payload"));
+            .andExpect(jsonPath("$.message").value("Invalid request payload"))
+            .andExpect(jsonPath("$.traceId").isNotEmpty())
+            .andExpect(header().exists("X-Trace-Id"));
     }
 
     @Test
@@ -79,7 +82,9 @@ class WebhookControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.message").value("Vehicle already inside garage"));
+            .andExpect(jsonPath("$.message").value("Vehicle already inside garage"))
+            .andExpect(jsonPath("$.traceId").isNotEmpty())
+            .andExpect(header().exists("X-Trace-Id"));
     }
 
     @Test
@@ -99,6 +104,8 @@ class WebhookControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload))
             .andExpect(status().isInternalServerError())
-            .andExpect(jsonPath("$.message").value("Unexpected server error"));
+            .andExpect(jsonPath("$.message").value("Unexpected server error"))
+            .andExpect(jsonPath("$.traceId").isNotEmpty())
+            .andExpect(header().exists("X-Trace-Id"));
     }
 }

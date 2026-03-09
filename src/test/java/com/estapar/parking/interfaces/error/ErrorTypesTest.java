@@ -16,9 +16,10 @@ class ErrorTypesTest {
     @Test
     void shouldExposeErrorResponseFields() {
         Instant now = Instant.now();
-        ErrorResponse response = new ErrorResponse("error", now);
+        ErrorResponse response = new ErrorResponse("error", now, "trace-123");
 
         assertEquals("error", response.message());
         assertEquals(now, response.timestamp());
+        assertEquals("trace-123", response.traceId());
     }
 }

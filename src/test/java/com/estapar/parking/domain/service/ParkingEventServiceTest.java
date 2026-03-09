@@ -131,6 +131,7 @@ class ParkingEventServiceTest {
 
         when(parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc("ABC1234"))
             .thenReturn(Optional.of(session));
+        when(parkingSpotRepository.findById(100L)).thenReturn(Optional.of(previousSpot));
         when(parkingSpotRepository.findFirstBySectorCodeAndLatBetweenAndLngBetween(any(), any(), any(), any(), any()))
             .thenReturn(Optional.of(matchedSpot));
 
@@ -168,6 +169,7 @@ class ParkingEventServiceTest {
 
         when(parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc("ABC1234"))
             .thenReturn(Optional.of(session));
+        when(parkingSpotRepository.findById(100L)).thenReturn(Optional.of(previousSpot));
         when(parkingSpotRepository.findFirstByExternalId(11L)).thenReturn(Optional.of(matchedSpot));
 
         service.processEvent(request);
@@ -191,7 +193,16 @@ class ParkingEventServiceTest {
     }
 
     @Test
-    void shouldRejectParkedWhenSectorIsMissingForCoordinates() {
+    void shouldProcessParkedByCoordinatesWhenSectorIsMissing() {
+        Sector sector = sector("A", 10, 1, new BigDecimal("10.00"));
+        ParkingSpot previousSpot = spot(10L, sector, true, new BigDecimal("-23.500000"), new BigDecimal("-46.500000"));
+        ParkingSpot matchedSpot = spot(11L, sector, false, new BigDecimal("-23.561684"), new BigDecimal("-46.655981"));
+        setId(previousSpot, 100L);
+        setId(matchedSpot, 200L);
+
+        ParkingSession session = new ParkingSession();
+        session.setSpot(previousSpot);
+
         WebhookEventRequest request = new WebhookEventRequest(
             "ABC1234",
             null,
@@ -203,9 +214,20 @@ class ParkingEventServiceTest {
             "PARKED"
         );
 
-        DomainException ex = assertThrows(DomainException.class, () -> service.processEvent(request));
+        when(parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc("ABC1234"))
+            .thenReturn(Optional.of(session));
+        when(parkingSpotRepository.findById(100L)).thenReturn(Optional.of(previousSpot));
+        when(parkingSpotRepository.findFirstByLatBetweenAndLngBetween(any(), any(), any(), any()))
+            .thenReturn(Optional.of(matchedSpot));
 
-        assertEquals("sector is required for PARKED event when spot_id is not provided", ex.getMessage());
+        service.processEvent(request);
+
+        assertEquals(SessionStatus.PARKED, session.getStatus());
+        assertEquals(matchedSpot, session.getSpot());
+        assertNotNull(session.getParkedTime());
+        verify(parkingSpotRepository).save(previousSpot);
+        verify(parkingSpotRepository).save(matchedSpot);
+        verify(parkingSessionRepository).save(session);
     }
 
     @Test
@@ -232,12 +254,45 @@ class ParkingEventServiceTest {
     }
 
     @Test
+    void shouldRejectParkedWhenTargetSpotIsAlreadyOccupied() {
+        Sector sector = sector("A", 10, 1, new BigDecimal("10.00"));
+        ParkingSpot previousSpot = spot(10L, sector, true, new BigDecimal("-23.500000"), new BigDecimal("-46.500000"));
+        ParkingSpot matchedSpot = spot(11L, sector, true, new BigDecimal("-23.561684"), new BigDecimal("-46.655981"));
+        setId(previousSpot, 100L);
+        setId(matchedSpot, 200L);
+
+        ParkingSession session = new ParkingSession();
+        session.setSpot(previousSpot);
+
+        WebhookEventRequest request = new WebhookEventRequest(
+            "ABC1234",
+            null,
+            null,
+            11L,
+            null,
+            null,
+            "A",
+            "PARKED"
+        );
+
+        when(parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc("ABC1234"))
+            .thenReturn(Optional.of(session));
+        when(parkingSpotRepository.findById(100L)).thenReturn(Optional.of(previousSpot));
+        when(parkingSpotRepository.findFirstByExternalId(11L)).thenReturn(Optional.of(matchedSpot));
+
+        DomainException ex = assertThrows(DomainException.class, () -> service.processEvent(request));
+
+        assertEquals("Target spot already occupied", ex.getMessage());
+    }
+
+    @Test
     void shouldProcessExitAndCreateRevenueEntryUsingConfiguredTimeZone() {
         Instant entry = Instant.parse("2026-03-08T22:00:00Z");
         Instant exit = Instant.parse("2026-03-09T00:30:00Z");
 
         Sector sector = sector("A", 10, 5, new BigDecimal("10.00"));
         ParkingSpot spot = spot(10L, sector, true, new BigDecimal("-23.56"), new BigDecimal("-46.65"));
+        setId(spot, 300L);
 
         ParkingSession session = new ParkingSession();
         session.setSector(sector);
@@ -249,6 +304,7 @@ class ParkingEventServiceTest {
 
         when(parkingSessionRepository.findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc("ABC1234"))
             .thenReturn(Optional.of(session));
+        when(parkingSpotRepository.findById(300L)).thenReturn(Optional.of(spot));
         when(pricingPolicy.calculateExitAmount(entry, exit, new BigDecimal("10.00")))
             .thenReturn(new BigDecimal("30.00"));
 

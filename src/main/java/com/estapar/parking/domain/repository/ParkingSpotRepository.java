@@ -14,6 +14,13 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, Long> 
 
     Optional<ParkingSpot> findFirstByExternalId(Long externalId);
 
+    Optional<ParkingSpot> findFirstByLatBetweenAndLngBetween(
+        BigDecimal minLat,
+        BigDecimal maxLat,
+        BigDecimal minLng,
+        BigDecimal maxLng
+    );
+
     Optional<ParkingSpot> findFirstBySectorCodeAndLatBetweenAndLngBetween(
         String sectorCode,
         BigDecimal minLat,

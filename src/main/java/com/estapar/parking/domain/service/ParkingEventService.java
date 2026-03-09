@@ -101,16 +101,24 @@ public class ParkingEventService {
             .findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .orElseThrow(() -> new DomainException("Open session not found for vehicle"));
 
-        if (matchedSpot != null && session.getSpot() != null && !matchedSpot.getId().equals(session.getSpot().getId())) {
-            if (matchedSpot.isOccupied()) {
-                throw new DomainException("Target spot already occupied");
-            }
-            session.getSpot().setOccupied(false);
-            parkingSpotRepository.save(session.getSpot());
+        ParkingSpot currentSpot = resolveSessionSpot(session);
+        boolean changingSpot = currentSpot == null || !matchedSpot.getId().equals(currentSpot.getId());
+
+        if (changingSpot && matchedSpot.isOccupied()) {
+            throw new DomainException("Target spot already occupied");
+        }
+
+        if (changingSpot && currentSpot != null) {
+            currentSpot.setOccupied(false);
+            parkingSpotRepository.save(currentSpot);
+        }
+
+        if (!matchedSpot.isOccupied()) {
             matchedSpot.setOccupied(true);
             parkingSpotRepository.save(matchedSpot);
-            session.setSpot(matchedSpot);
         }
+
+        session.setSpot(matchedSpot);
 
         session.setStatus(SessionStatus.PARKED);
         session.setParkedTime(Instant.now());
@@ -135,12 +143,17 @@ public class ParkingEventService {
         if (request.lat() == null || request.lng() == null) {
             throw new DomainException("spot_id or lat/lng are required for PARKED event");
         }
+        ParkingSpot matchedSpot;
         if (request.sector() == null || request.sector().isBlank()) {
-            throw new DomainException("sector is required for PARKED event when spot_id is not provided");
+            matchedSpot = findSpotByCoordinates(request.lat(), request.lng());
+        } else {
+            String parkedSector = request.sector().trim().toUpperCase();
+            matchedSpot = findSpotByCoordinates(parkedSector, request.lat(), request.lng());
         }
-
-        String parkedSector = request.sector().trim().toUpperCase();
-        return findSpotByCoordinates(parkedSector, request.lat(), request.lng());
+        if (matchedSpot == null) {
+            throw new DomainException("Target spot not found");
+        }
+        return matchedSpot;
     }
 
     private void handleExit(WebhookEventRequest request) {
@@ -155,9 +168,11 @@ public class ParkingEventService {
         Instant exitTime = request.exitTime();
         BigDecimal amount = pricingPolicy.calculateExitAmount(session.getEntryTime(), exitTime, session.getHourlyPriceApplied());
 
-        if (session.getSpot() != null && session.getSpot().isOccupied()) {
-            session.getSpot().setOccupied(false);
-            parkingSpotRepository.save(session.getSpot());
+        ParkingSpot currentSpot = resolveSessionSpot(session);
+        if (currentSpot != null) {
+            currentSpot.setOccupied(false);
+            parkingSpotRepository.save(currentSpot);
+            session.setSpot(currentSpot);
         }
 
         Sector sector = session.getSector();
@@ -199,5 +214,22 @@ public class ParkingEventService {
                 maxLng
             )
             .orElse(null);
+    }
+
+    private ParkingSpot findSpotByCoordinates(BigDecimal lat, BigDecimal lng) {
+        BigDecimal minLat = lat.subtract(COORDINATE_DELTA);
+        BigDecimal maxLat = lat.add(COORDINATE_DELTA);
+        BigDecimal minLng = lng.subtract(COORDINATE_DELTA);
+        BigDecimal maxLng = lng.add(COORDINATE_DELTA);
+
+        return parkingSpotRepository.findFirstByLatBetweenAndLngBetween(minLat, maxLat, minLng, maxLng)
+            .orElse(null);
+    }
+
+    private ParkingSpot resolveSessionSpot(ParkingSession session) {
+        if (session.getSpot() == null || session.getSpot().getId() == null) {
+            return null;
+        }
+        return parkingSpotRepository.findById(session.getSpot().getId()).orElse(session.getSpot());
     }
 }
