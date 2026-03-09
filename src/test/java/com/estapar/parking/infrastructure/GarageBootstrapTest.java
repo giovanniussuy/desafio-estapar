@@ -93,6 +93,45 @@ class GarageBootstrapTest {
     }
 
     @Test
+    void shouldThrowWhenPayloadHasNullSpotsAndBootstrapIsRequired() {
+        GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
+        when(sectorRepository.count()).thenReturn(0L);
+
+        GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
+        when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(List.of(sectorResponse), null));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> bootstrap.run(null));
+
+        assertEquals("Invalid garage configuration payload from simulator", ex.getMessage());
+    }
+
+    @Test
+    void shouldThrowWhenPayloadIsNullAndBootstrapIsRequired() {
+        GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
+        when(sectorRepository.count()).thenReturn(0L);
+        when(simulatorClient.getGarageConfig()).thenReturn(null);
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> bootstrap.run(null));
+
+        assertEquals("Invalid garage configuration payload from simulator", ex.getMessage());
+    }
+
+    @Test
+    void shouldIgnoreSpotWhenSectorDoesNotExistInGarageMap() {
+        GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
+        when(sectorRepository.count()).thenReturn(0L);
+
+        GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
+        GarageSpotResponse unknownSectorSpot = new GarageSpotResponse(2L, "B", new BigDecimal("-23.561685"), new BigDecimal("-46.655982"));
+        when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(List.of(sectorResponse), List.of(unknownSectorSpot)));
+        when(sectorRepository.save(any(Sector.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertDoesNotThrow(() -> bootstrap.run(null));
+
+        verify(parkingSpotRepository, never()).save(any(ParkingSpot.class));
+    }
+
+    @Test
     void shouldPersistSectorsAndSpotsWhenPayloadIsValid() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
         when(sectorRepository.count()).thenReturn(0L);
