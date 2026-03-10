@@ -38,20 +38,44 @@ class GarageBootstrapTest {
     private ParkingSpotRepository parkingSpotRepository;
 
     @Test
-    void shouldSkipBootstrapWhenDatabaseAlreadyHasSectors() {
+    void shouldReconcileWhenDatabaseAlreadyHasSectors() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(1L);
+        Sector existingSector = new Sector();
+        existingSector.setCode("A");
+        existingSector.setBasePrice(new BigDecimal("5.00"));
+        existingSector.setMaxCapacity(1);
+        existingSector.setOccupiedSpots(1);
+
+        when(sectorRepository.findAllByOrderByCodeAsc()).thenReturn(List.of(existingSector));
+
+        GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
+        GarageSpotResponse existingSpotResponse = new GarageSpotResponse(1L, "A", new BigDecimal("-23.561684"), new BigDecimal("-46.655981"));
+        GarageSpotResponse newSpotResponse = new GarageSpotResponse(2L, "A", new BigDecimal("-23.561685"), new BigDecimal("-46.655982"));
+        when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(List.of(sectorResponse), List.of(existingSpotResponse, newSpotResponse)));
+
+        ParkingSpot existingSpot = new ParkingSpot();
+        existingSpot.setExternalId(1L);
+        existingSpot.setSector(existingSector);
+        existingSpot.setOccupied(true);
+        when(parkingSpotRepository.findFirstByExternalId(1L)).thenReturn(java.util.Optional.of(existingSpot));
+        when(parkingSpotRepository.findFirstByExternalId(2L)).thenReturn(java.util.Optional.empty());
+        when(sectorRepository.save(any(Sector.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         assertDoesNotThrow(() -> bootstrap.run(null));
 
-        verify(simulatorClient, never()).getGarageConfig();
-        verify(sectorRepository, never()).save(any(Sector.class));
+        verify(simulatorClient).getGarageConfig();
+        ArgumentCaptor<Sector> sectorCaptor = ArgumentCaptor.forClass(Sector.class);
+        verify(sectorRepository).save(sectorCaptor.capture());
+        Sector savedSector = sectorCaptor.getValue();
+        assertEquals("A", savedSector.getCode());
+        assertEquals(new BigDecimal("10.00"), savedSector.getBasePrice());
+        assertEquals(2, savedSector.getMaxCapacity());
+        assertEquals(1, savedSector.getOccupiedSpots());
     }
 
     @Test
     void shouldThrowWhenSimulatorFailsAndBootstrapIsRequired() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
         when(simulatorClient.getGarageConfig()).thenThrow(new RestClientException("down"));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> bootstrap.run(null));
@@ -62,7 +86,6 @@ class GarageBootstrapTest {
     @Test
     void shouldContinueWhenSimulatorFailsAndBootstrapIsOptional() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, false);
-        when(sectorRepository.count()).thenReturn(0L);
         when(simulatorClient.getGarageConfig()).thenThrow(new RestClientException("down"));
 
         assertDoesNotThrow(() -> bootstrap.run(null));
@@ -73,7 +96,6 @@ class GarageBootstrapTest {
     @Test
     void shouldThrowWhenPayloadIsInvalidAndBootstrapIsRequired() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
         when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(null, List.of()));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> bootstrap.run(null));
@@ -84,7 +106,6 @@ class GarageBootstrapTest {
     @Test
     void shouldContinueWhenPayloadIsInvalidAndBootstrapIsOptional() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, false);
-        when(sectorRepository.count()).thenReturn(0L);
         when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(null, List.of()));
 
         assertDoesNotThrow(() -> bootstrap.run(null));
@@ -95,7 +116,6 @@ class GarageBootstrapTest {
     @Test
     void shouldThrowWhenPayloadHasNullSpotsAndBootstrapIsRequired() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
 
         GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
         when(simulatorClient.getGarageConfig()).thenReturn(new GarageConfigResponse(List.of(sectorResponse), null));
@@ -108,7 +128,6 @@ class GarageBootstrapTest {
     @Test
     void shouldThrowWhenPayloadIsNullAndBootstrapIsRequired() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
         when(simulatorClient.getGarageConfig()).thenReturn(null);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () -> bootstrap.run(null));
@@ -119,7 +138,6 @@ class GarageBootstrapTest {
     @Test
     void shouldIgnoreSpotWhenSectorDoesNotExistInGarageMap() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
 
         GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
         GarageSpotResponse unknownSectorSpot = new GarageSpotResponse(2L, "B", new BigDecimal("-23.561685"), new BigDecimal("-46.655982"));
@@ -134,7 +152,6 @@ class GarageBootstrapTest {
     @Test
     void shouldPersistSectorsAndSpotsWhenPayloadIsValid() {
         GarageBootstrap bootstrap = new GarageBootstrap(simulatorClient, sectorRepository, parkingSpotRepository, true);
-        when(sectorRepository.count()).thenReturn(0L);
 
         GarageSectorResponse sectorResponse = new GarageSectorResponse("A", new BigDecimal("10.00"), 2);
         GarageSpotResponse spot1 = new GarageSpotResponse(1L, "A", new BigDecimal("-23.561684"), new BigDecimal("-46.655981"));

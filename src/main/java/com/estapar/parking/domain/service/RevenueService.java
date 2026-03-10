@@ -18,7 +18,7 @@ public class RevenueService {
     }
 
     public RevenueResponse getRevenue(LocalDate date, String sector) {
-        BigDecimal amount = revenueEntryRepository.sumByDateAndSector(date, sector.toUpperCase()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal amount = revenueEntryRepository.sumByDateAndSector(date, sector.trim().toUpperCase()).setScale(2, RoundingMode.HALF_UP);
         return new RevenueResponse(amount, "BRL", Instant.now());
     }
 }

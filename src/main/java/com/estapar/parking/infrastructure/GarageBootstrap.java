@@ -42,10 +42,6 @@ public class GarageBootstrap implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (sectorRepository.count() > 0) {
-            return;
-        }
-
         GarageConfigResponse config;
         try {
             config = simulatorClient.getGarageConfig();
@@ -65,13 +61,19 @@ public class GarageBootstrap implements ApplicationRunner {
             return;
         }
 
+        Map<String, Sector> existingSectors = sectorRepository.findAllByOrderByCodeAsc().stream()
+            .collect(java.util.stream.Collectors.toMap(Sector::getCode, Function.identity()));
+
         Map<String, Sector> sectorMap = config.garage().stream()
             .map(sectorResponse -> {
-                Sector sector = new Sector();
-                sector.setCode(sectorResponse.sector());
+                Sector sector = existingSectors.get(sectorResponse.sector());
+                if (sector == null) {
+                    sector = new Sector();
+                    sector.setCode(sectorResponse.sector());
+                    sector.setOccupiedSpots(0);
+                }
                 sector.setBasePrice(sectorResponse.basePrice());
                 sector.setMaxCapacity(sectorResponse.maxCapacity());
-                sector.setOccupiedSpots(0);
                 return sectorRepository.save(sector);
             })
             .collect(java.util.stream.Collectors.toMap(Sector::getCode, Function.identity()));
@@ -81,12 +83,15 @@ public class GarageBootstrap implements ApplicationRunner {
             if (sector == null) {
                 return;
             }
-            ParkingSpot spot = new ParkingSpot();
-            spot.setExternalId(spotResponse.id());
+            ParkingSpot spot = parkingSpotRepository.findFirstByExternalId(spotResponse.id()).orElse(null);
+            if (spot == null) {
+                spot = new ParkingSpot();
+                spot.setExternalId(spotResponse.id());
+                spot.setOccupied(false);
+            }
             spot.setSector(sector);
             spot.setLat(spotResponse.lat());
             spot.setLng(spotResponse.lng());
-            spot.setOccupied(false);
             parkingSpotRepository.save(spot);
         });
     }

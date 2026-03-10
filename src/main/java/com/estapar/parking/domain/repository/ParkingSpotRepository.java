@@ -12,8 +12,10 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ParkingSpot> findFirstBySectorCodeAndOccupiedFalseOrderByExternalIdAsc(String sectorCode);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ParkingSpot> findFirstByExternalId(Long externalId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ParkingSpot> findFirstByLatBetweenAndLngBetween(
         BigDecimal minLat,
         BigDecimal maxLat,
@@ -21,6 +23,7 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, Long> 
         BigDecimal maxLng
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ParkingSpot> findFirstBySectorCodeAndLatBetweenAndLngBetween(
         String sectorCode,
         BigDecimal minLat,
@@ -28,4 +31,7 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, Long> 
         BigDecimal minLng,
         BigDecimal maxLng
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<ParkingSpot> findById(Long id);
 }

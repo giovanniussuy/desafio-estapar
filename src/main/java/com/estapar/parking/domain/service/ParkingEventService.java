@@ -100,6 +100,15 @@ public class ParkingEventService {
         ParkingSession session = parkingSessionRepository
             .findFirstByLicensePlateAndExitTimeIsNullOrderByEntryTimeDesc(request.licensePlate())
             .orElseThrow(() -> new DomainException("Open session not found for vehicle"));
+        Sector sessionSector = session.getSector();
+        if (sessionSector != null && matchedSpot.getSector() != null) {
+            String sessionSectorCode = sessionSector.getCode();
+            String matchedSectorCode = matchedSpot.getSector().getCode();
+            if (sessionSectorCode != null && matchedSectorCode != null
+                && !sessionSectorCode.equalsIgnoreCase(matchedSectorCode)) {
+                throw new DomainException("PARKED event cannot change sector for active session");
+            }
+        }
 
         ParkingSpot currentSpot = resolveSessionSpot(session);
         boolean changingSpot = currentSpot == null || !matchedSpot.getId().equals(currentSpot.getId());
